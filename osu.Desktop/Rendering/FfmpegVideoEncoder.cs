@@ -108,9 +108,19 @@ namespace osu.Desktop.Rendering
         {
             try
             {
-                stdin?.Flush();
-                stdin?.Close();
-                stdin?.Dispose();
+                try
+                {
+                    stdin?.Flush();
+                    stdin?.Close();
+                }
+                catch (Exception ex)
+                {
+                    // ffmpeg likely exited early (e.g. finished before the video did, or crashed).
+                    // Continue so we can still surface its exit code/stderr below.
+                    Logger.Log($"Video pipe closed unexpectedly: {ex.Message}", LoggingTarget.Runtime, LogLevel.Error);
+                }
+
+                try { stdin?.Dispose(); } catch { }
                 stdin = null;
 
                 if (ffmpeg == null) return 1;

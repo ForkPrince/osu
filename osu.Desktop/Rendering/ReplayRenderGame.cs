@@ -142,17 +142,17 @@ namespace osu.Desktop.Rendering
             if (score?.Replay == null || score.Replay.Frames.Count == 0)
                 throw new InvalidOperationException("Imported score has no replay frames.");
 
+            var beatmapInfo = score.ScoreInfo.BeatmapInfo ?? throw new InvalidOperationException("Replay has no beatmap info.");
             string? audioPath = null;
 
             if (options.IncludeAudio)
             {
-                audioPath = tryResolveAudioPath(beatmapSet);
+                audioPath = tryResolveAudioPath(beatmapSet, beatmapInfo);
 
                 if (audioPath == null)
                     Logger.Log("No audio track found in beatmap; rendering video-only.", LoggingTarget.Runtime, LogLevel.Debug);
             }
 
-            var beatmapInfo = score.ScoreInfo.BeatmapInfo ?? throw new InvalidOperationException("Replay has no beatmap info.");
             var working = BeatmapManager.GetWorkingBeatmap(beatmapInfo);
 
             var pushTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -448,7 +448,7 @@ namespace osu.Desktop.Rendering
             });
         }
 
-        private string? tryResolveAudioPath(Live<BeatmapSetInfo> beatmapSet)
+        private string? tryResolveAudioPath(Live<BeatmapSetInfo> beatmapSet, BeatmapInfo beatmapInfo)
         {
             try
             {
@@ -458,14 +458,19 @@ namespace osu.Desktop.Rendering
                 string? audioFilename = null;
                 string? storagePath = null;
 
+                string? trackFilename = beatmapInfo.Metadata.AudioFile;
+
+                if (string.IsNullOrEmpty(trackFilename))
+                {
+                    Logger.Log("Beatmap has no audio filename metadata; rendering video-only.", LoggingTarget.Runtime, LogLevel.Debug);
+                    return null;
+                }
+
                 beatmapSet.PerformRead(s =>
                 {
                     foreach (var f in s.Files)
                     {
-                        string name = f.Filename.ToLowerInvariant();
-                        if (name.EndsWith(".mp3", StringComparison.Ordinal) || name.EndsWith(".ogg", StringComparison.Ordinal)
-                            || name.EndsWith(".wav", StringComparison.Ordinal) || name.EndsWith(".m4a", StringComparison.Ordinal)
-                            || name.EndsWith(".flac", StringComparison.Ordinal))
+                        if (string.Equals(Path.GetFileName(f.Filename), Path.GetFileName(trackFilename), StringComparison.OrdinalIgnoreCase))
                         {
                             audioFilename = f.Filename;
                             storagePath = f.File.GetStoragePath();
