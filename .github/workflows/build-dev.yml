@@ -89,5 +89,5 @@ jobs:
         run: |
           gh release delete latest --cleanup-tag -y || true
 
-          printf '%b' 'See `docs/replay-rendering.md` for usage instructions.\n\nRequirements:\n* [FFmpeg](https://ffmpeg.org/download.html) installed and available in your PATH.\n* A display with OpenGL support. On headless Linux, use `xvfb-run`.\n\n\nExample:\n\n```bash\n./osu! --render --replay play.osr --beatmap map.osz --output render.mp4\n```\n' > "$RUNNER_TEMP/notes.md"
+          printf '%b' 'See `docs/replay-rendering.md` for usage instructions.\n\nRequirements:\n* [FFmpeg](https://ffmpeg.org/download.html) installed and available in your PATH.\n* A display with OpenGL support. On headless Linux, use `xvfb-run`.\n\n\nExample:\n\n```\n./osu! --render --replay play.osr --beatmap map.osz --output render.mp4\n```\n' > "$RUNNER_TEMP/notes.md"
           gh release create latest --title "latest" --target "${{ github.sha }}" --notes-file "$RUNNER_TEMP/notes.md" dist/*

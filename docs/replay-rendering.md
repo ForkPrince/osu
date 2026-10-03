@@ -5,19 +5,19 @@ You provide a replay (`.osr`), the beatmap package it was played on (`.osz`),
 optionally a skin (`.osk` file or legacy skin folder), and an output path:
 
 ```shell
-dotnet run --project osu.Desktop -c Release -- --render --replay play.osr --beatmap map.osz --skin skin.osk --output render.mp4
+./osu! --render --replay play.osr --beatmap map.osz --skin skin.osk --output render.mp4
 ```
 
 Or with danser-go-style flags:
 
 ```shell
-dotnet run --project osu.Desktop -c Release -- --render -replay=replay.osr -osu=map.osz -skinpath=./skins/myskin -record -out=/tmp/out
+./osu! --render -replay=replay.osr -osu=map.osz -skinpath=./skins/myskin -record -out=/tmp/out
 ```
 
 Run with `--help` to see all options:
 
 ```shell
-dotnet run --project osu.Desktop -- --help
+./osu! --help
 ```
 
 ## Options
