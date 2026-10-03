@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Runtime.Versioning;
 using osu.Desktop.LegacyIpc;
+using osu.Desktop.Rendering;
 using osu.Desktop.Windows;
 using osu.Framework;
 using osu.Framework.Development;
@@ -73,6 +74,39 @@ namespace osu.Desktop
 
             // Back up the cwd before DesktopGameHost changes it
             string cwd = Environment.CurrentDirectory;
+
+            // Replay rendering (danser-go style). Handles --render / -record and --help.
+            if (ReplayRenderOptions.IsHelpRequest(args))
+            {
+                Console.WriteLine(ReplayRenderOptions.GetHelpText());
+                return;
+            }
+
+            if (ReplayRenderOptions.IsRenderIntent(args))
+            {
+                if (!ReplayRenderOptions.TryParse(args, cwd, out var renderOptions, out string? renderError) || renderOptions == null)
+                {
+                    Console.Error.WriteLine($"Error: {renderError}");
+                    Console.WriteLine();
+                    Console.WriteLine(ReplayRenderOptions.GetHelpText());
+                    Environment.ExitCode = 2;
+                    return;
+                }
+
+                var renderHostOptions = new HostOptions
+                {
+                    // Allow renders to run alongside / independent of a running game instance.
+                    IPCPipeName = null,
+                    FriendlyGameName = OsuGameBase.GAME_NAME,
+                };
+
+                using (DesktopGameHost host = Host.GetSuitableDesktopHost($"{base_game_name}-render", renderHostOptions))
+                {
+                    host.Run(new ReplayRenderGame(renderOptions));
+                }
+
+                return;
+            }
 
             string gameName = base_game_name;
             bool tournamentClient = false;

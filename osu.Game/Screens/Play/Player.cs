@@ -737,6 +737,21 @@ namespace osu.Game.Screens.Play
         /// <param name="time">The destination time to seek to.</param>
         public void Seek(double time) => GameplayClockContainer.Seek(time);
 
+        /// <summary>
+        /// Current gameplay time, for offline rendering / tooling.
+        /// </summary>
+        public double GameplayTime => GameplayClockContainer.CurrentTime;
+
+        /// <summary>
+        /// Pause gameplay clock, for offline rendering / tooling.
+        /// </summary>
+        public void PauseGameplay() => GameplayClockContainer.Stop();
+
+        /// <summary>
+        /// Resume gameplay clock, for offline rendering / tooling.
+        /// </summary>
+        public void ResumeGameplay() => GameplayClockContainer.Start();
+
         private ScheduledDelegate frameStablePlaybackResetDelegate;
 
         /// <summary>
