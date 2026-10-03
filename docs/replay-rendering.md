@@ -1,22 +1,22 @@
 # Rendering replays from the command line
 
-*osu!* can render a replay file to video without opening the game window, danser-go style.
-You provide a replay (`.osr`), the beatmap package it was played on (`.osz`),
-optionally a skin (`.osk` file or legacy skin folder), and an output path:
+Render a replay to video from the terminal. Provide a replay (`.osr`),
+the beatmap package it was played on (`.osz`), optionally a skin
+(`.osk` file or folder), and an output path:
 
-```shell
+```
 ./osu! --render --replay play.osr --beatmap map.osz --skin skin.osk --output render.mp4
 ```
 
 Or with danser-go-style flags:
 
-```shell
+```
 ./osu! --render -replay=replay.osr -osu=map.osz -skinpath=./skins/myskin -record -out=/tmp/out
 ```
 
 Run with `--help` to see all options:
 
-```shell
+```
 ./osu! --help
 ```
 
