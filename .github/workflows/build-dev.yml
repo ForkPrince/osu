@@ -1,0 +1,102 @@
+name: Replay render release
+
+on:
+  push:
+    branches:
+      - replay-render
+  workflow_dispatch:
+
+concurrency:
+  group: render-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            rid: win-x64
+            archive: osu-render-windows-x64.zip
+          - name: Linux
+            os: ubuntu-latest
+            rid: linux-x64
+            archive: osu-render-linux-x64.tar.gz
+          - name: macOS
+            os: macos-latest
+            rid: osx-arm64
+            archive: osu-render-macos-arm64.zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install .NET 10.0.x
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish self-contained
+        run: dotnet publish osu.Desktop/osu.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained -o publish
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path publish/* -DestinationPath ${{ matrix.archive }}
+
+      - name: Archive (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf ${{ matrix.archive }} -C publish .
+
+      - name: Archive (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc publish ${{ matrix.archive }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  release:
+    name: Update latest release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist
+
+      - name: Recreate latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --cleanup-tag -y || true
+
+          gh release create latest \
+            --title "latest" \
+            --target "${{ github.sha }}" \
+            --notes "Rolling build of the replay renderer from \`replay-render\` @ \`${{ github.sha }}\`.
+
+          Renders osu! replays to video from the terminal (danser-go style).
+          See \`docs/replay-rendering.md\` for usage.
+
+          Requires [ffmpeg](https://ffmpeg.org/download.html) on PATH and a display with OpenGL
+          (on headless Linux use \`xvfb-run\`).
+
+          Example:
+          \`./osu! --render --replay play.osr --beatmap map.osz --output render.mp4\`" \
+            dist/*
