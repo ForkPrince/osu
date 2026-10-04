@@ -36,6 +36,7 @@ Run with `--help` to see all options:
 | `--no-video` | Hide beatmap background video. | Shown |
 | `--no-storyboard` | Disable storyboard. | Shown |
 | `--no-hud` | Hide HUD for clean footage. | Shown |
+| `--end-on-fail` | If the replay failed the beatmap, stop at the fail point instead of rendering to the end of the song. | Off |
 | `--lead-in` / `--lead-out` | Padding (ms) captured around first/last replay frame. | 2000 / 2000 |
 
 ## Notes

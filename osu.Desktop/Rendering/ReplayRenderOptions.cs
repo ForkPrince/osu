@@ -33,6 +33,7 @@ namespace osu.Desktop.Rendering
         public bool IncludeVideo { get; set; } = true;
         public bool ShowStoryboard { get; set; } = true;
         public bool ShowHUD { get; set; } = true;
+        public bool EndOnFail { get; set; }
 
         /// <summary>
         /// Extra lead-in/out in ms captured around first/last replay frame.
@@ -89,6 +90,7 @@ Optional:
   --no-video                            Don't show beatmap background video.
   --no-storyboard                       Disable storyboard.
   --no-hud                              Hide HUD (score, combo, leaderboard) for clean footage.
+  --end-on-fail                         If the replay failed the beatmap, stop at the fail instead of rendering to the end of the song.
   --lead-in <ms>                        Capture padding before first frame. Default: 2000.
   --lead-out <ms>                       Capture padding after last frame. Default: 2000.
   --help, -h                            Show this help.
@@ -288,6 +290,7 @@ Notes:
             options.IncludeVideo = !has("no-video");
             options.ShowStoryboard = !has("no-storyboard", "no-storyboards");
             options.ShowHUD = !has("no-hud", "hide-hud");
+            options.EndOnFail = has("end-on-fail", "stop-on-fail");
 
             // Ensure output has an extension; default to container.
             if (string.IsNullOrEmpty(Path.GetExtension(options.OutputPath)))

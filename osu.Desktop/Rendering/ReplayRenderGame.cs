@@ -17,6 +17,8 @@ using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Rulesets.Scoring;
+using osu.Game.Scoring;
 using osu.Game.Screens;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
@@ -221,7 +223,22 @@ namespace osu.Desktop.Rendering
             }
 
             double startTime = Math.Max(0, firstFrame - options.LeadInMs);
-            double endTime = Math.Max(lastFrame + options.LeadOutMs, lastObject + options.LeadOutMs);
+
+            // A failed replay ends when the player failed, not when the song does
+            // (replay frames stop at the fail point; the map continues playing otherwise).
+            bool replayFailed = score.ScoreInfo.Rank == ScoreRank.F;
+
+            double endTime;
+            if (options.EndOnFail && replayFailed)
+            {
+                endTime = lastFrame + options.LeadOutMs;
+                Console.WriteLine("Replay failed the beatmap; ending render at fail point.");
+            }
+            else
+            {
+                endTime = Math.Max(lastFrame + options.LeadOutMs, lastObject + options.LeadOutMs);
+            }
+
             double stepMs = 1000.0 / options.Fps;
             int totalFrames = Math.Max(1, (int)Math.Ceiling((endTime - startTime) / stepMs));
 
