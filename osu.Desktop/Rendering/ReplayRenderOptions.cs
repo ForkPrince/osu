@@ -35,6 +35,11 @@ namespace osu.Desktop.Rendering
         public bool ShowHUD { get; set; } = true;
         public bool EndOnFail { get; set; }
 
+        public string OutputFormat { get; set; } = "mp4";
+        public int? Quality { get; set; }
+        public string? FFmpegPath { get; set; }
+        public string? FFmpegExtraArgs { get; set; }
+
         /// <summary>
         /// Extra lead-in/out in ms captured around first/last replay frame.
         /// </summary>
@@ -91,6 +96,10 @@ Optional:
   --no-storyboard                       Disable storyboard.
   --no-hud                              Hide HUD (score, combo, leaderboard) for clean footage.
   --end-on-fail                         If the replay failed the beatmap, stop at the fail instead of rendering to the end of the song.
+  --output-format <fmt>                 mp4 (default), mkv, webm or gif.
+  --quality <0-51>                      Constant-quality encode (overrides --bitrate). Lower is better quality.
+  --ffmpeg-path <path>                  Path to the ffmpeg binary.
+  --ffmpeg-extra-args ""<args>""        Extra arguments appended to the ffmpeg command.
   --lead-in <ms>                        Capture padding before first frame. Default: 2000.
   --lead-out <ms>                       Capture padding after last frame. Default: 2000.
   --help, -h                            Show this help.
@@ -146,7 +155,8 @@ Notes:
             {
                 "replay", "r", "beatmap", "osu", "skin", "skinpath", "output", "out",
                 "width", "height", "fps", "bitrate", "video-bitrate", "encoder",
-                "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate"
+                "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
+                "output-format", "quality", "ffmpeg-path", "ffmpeg-extra-args"
             };
 
             for (int i = 0; i < args.Length; i++)
@@ -277,8 +287,42 @@ Notes:
             string? pixFmt = get("pixel-format");
             if (!string.IsNullOrEmpty(pixFmt)) options.PixelFormat = pixFmt!;
 
-            string? container = get("container");
-            if (!string.IsNullOrEmpty(container)) options.Container = container!;
+            string? format = get("output-format", "container");
+            if (!string.IsNullOrEmpty(format))
+            {
+                options.OutputFormat = format.ToLowerInvariant().TrimStart('.');
+
+                switch (options.OutputFormat)
+                {
+                    case "webm":
+                        options.Container = "webm";
+                        options.PixelFormat = "yuv420p";
+                        break;
+                    case "mkv":
+                        options.Container = "mkv";
+                        break;
+                    case "gif":
+                        options.Container = "gif";
+                        options.PixelFormat = "rgb24";
+                        options.Encoder = "gif";
+                        break;
+                    default:
+                        options.Container = options.OutputFormat;
+                        break;
+                }
+            }
+
+            string? quality = get("quality");
+            if (quality != null && !int.TryParse(quality, out int qv))
+            {
+                error = $"Invalid --quality value: {quality} (expected 0..51).";
+                return false;
+            }
+            if (quality != null)
+                options.Quality = Math.Clamp(int.Parse(quality), 0, 51);
+
+            options.FFmpegPath = get("ffmpeg-path");
+            options.FFmpegExtraArgs = get("ffmpeg-extra-args");
 
             string? leadIn = get("lead-in");
             if (leadIn != null && double.TryParse(leadIn, out double li)) options.LeadInMs = li;

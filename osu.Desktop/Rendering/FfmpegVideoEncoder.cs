@@ -21,18 +21,22 @@ namespace osu.Desktop.Rendering
 
         public string? AudioInputPath { get; set; }
 
+        public string ExecutablePath => options.FFmpegPath ?? "ffmpeg";
+
         public FfmpegVideoEncoder(ReplayRenderOptions options)
         {
             this.options = options;
         }
 
-        public static bool IsAvailable()
+        public static bool IsAvailable(ReplayRenderOptions? options = null)
         {
+            string executable = options?.FFmpegPath ?? "ffmpeg";
+
             try
             {
                 using var p = Process.Start(new ProcessStartInfo
                 {
-                    FileName = "ffmpeg",
+                    FileName = executable,
                     Arguments = "-version",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -58,21 +62,35 @@ namespace osu.Desktop.Rendering
             bool hasAudio = options.IncludeAudio && !string.IsNullOrEmpty(AudioInputPath) && File.Exists(AudioInputPath);
 
             // raw RGBA stdin -> video encode, optional audio input -> mux with -shortest.
-            string videoInput = $"-f rawvideo -vcodec rawvideo -pix_fmt rgba -s {options.Width}x{options.Height} -r {options.Fps.ToString(System.Globalization.CultureInfo.InvariantCulture)} -i -";
+            string fps = options.Fps.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string videoInput = $"-f rawvideo -vcodec rawvideo -pix_fmt rgba -s {options.Width}x{options.Height} -r {fps} -i -";
             string audioInput = hasAudio ? $" -i \"{AudioInputPath}\"" : string.Empty;
             string maps = hasAudio ? "-map 0:v -map 1:a" : "-map 0:v";
             string audioCodec = hasAudio ? $"-c:a aac -b:a {options.AudioBitrate} -shortest" : "-an";
 
-            string args =
-                $"-y {videoInput}{audioInput} {maps} -c:v {options.Encoder} -b:v {options.VideoBitrate} -pix_fmt {options.PixelFormat} -r {options.Fps.ToString(System.Globalization.CultureInfo.InvariantCulture)} {audioCodec} \"{options.OutputPath}\"";
+            // --quality switches from a fixed bitrate to a constant-quality encode.
+            string videoCodec;
 
-            Logger.Log($"Starting ffmpeg: ffmpeg {args}", LoggingTarget.Runtime, LogLevel.Debug);
+            if (options.Quality.HasValue && !options.Encoder.EndsWith("gif", StringComparison.OrdinalIgnoreCase))
+                videoCodec = options.Encoder.StartsWith("libvpx", StringComparison.OrdinalIgnoreCase)
+                    ? $"-c:v {options.Encoder} -crf {options.Quality.Value} -b:v 0"
+                    : $"-c:v {options.Encoder} -crf {options.Quality.Value} -preset medium";
+            else
+                videoCodec = $"-c:v {options.Encoder} -b:v {options.VideoBitrate}";
+
+            string pixelFormat = options.Encoder.EndsWith("gif", StringComparison.OrdinalIgnoreCase) ? string.Empty : $" -pix_fmt {options.PixelFormat}";
+            string extra = string.IsNullOrWhiteSpace(options.FFmpegExtraArgs) ? string.Empty : $" {options.FFmpegExtraArgs}";
+
+            string args =
+                $"-y {videoInput}{audioInput} {maps} {videoCodec}{pixelFormat} -r {fps} {audioCodec}{extra} \"{options.OutputPath}\"";
+
+            Logger.Log($"Starting ffmpeg: {ExecutablePath} {args}", LoggingTarget.Runtime, LogLevel.Debug);
 
             ffmpeg = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "ffmpeg",
+                    FileName = ExecutablePath,
                     Arguments = args,
                     UseShellExecute = false,
                     CreateNoWindow = true,
