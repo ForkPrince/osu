@@ -175,6 +175,7 @@ namespace osu.Desktop.Rendering
                         AllowPause = true,
                         AllowRestart = false,
                         AllowUserInteraction = false,
+                        ShowLeaderboard = options.ShowLeaderboard,
                     }));
 
                     pushTcs.TrySetResult(true);
@@ -206,6 +207,12 @@ namespace osu.Desktop.Rendering
                 // posted before capture (import notices, log forwards, first-run notices).
                 // Exports must not contain notification UI.
                 player.OverlayActivationMode.Value = OverlayActivation.Disabled;
+                return true;
+            }).ConfigureAwait(false);
+
+            await runOnUpdateThreadAsync(() =>
+            {
+                applyHudOverrides(player);
                 return true;
             }).ConfigureAwait(false);
 
@@ -320,6 +327,46 @@ namespace osu.Desktop.Rendering
             finish(0);
         }
 
+        /// <summary>
+        /// Applies HUD element toggles which are not otherwise exposed via configuration.
+        /// </summary>
+        private void applyHudOverrides(ReplayPlayer player)
+        {
+            if (options.ShowProgressBar && options.ShowComboMeter)
+                return;
+
+            var field = typeof(Player).GetField("<HUDOverlay>k__BackingField", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            object? hud = field?.GetValue(player);
+
+            if (hud == null)
+                return;
+
+            hideMatching(hud);
+        }
+
+        private static void hideMatching(object? drawable)
+        {
+            if (drawable is osu.Framework.Graphics.Drawable d)
+            {
+                string name = d.GetType().Name;
+
+                if (name.Contains("SongProgress", StringComparison.Ordinal) || name.Contains("ComboCounter", StringComparison.Ordinal))
+                    d.Alpha = 0;
+            }
+
+            if (drawable is not osu.Framework.Graphics.Containers.CompositeDrawable)
+                return;
+
+            var childrenProperty = drawable!.GetType().GetProperty("InternalChildren",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.FlattenHierarchy);
+
+            if (childrenProperty?.GetValue(drawable) is not System.Collections.IEnumerable children)
+                return;
+
+            foreach (object? child in children)
+                hideMatching(child);
+        }
+
         private void applyRenderConfig()
         {
             try
@@ -346,6 +393,8 @@ namespace osu.Desktop.Rendering
                     ? HUDVisibilityMode.Always
                     : HUDVisibilityMode.Never);
                 LocalConfig.SetValue(OsuSetting.ShowFirstRunSetup, false);
+                LocalConfig.SetValue(OsuSetting.GameplayLeaderboard, options.ShowLeaderboard);
+                LocalConfig.SetValue(OsuSetting.KeyOverlay, options.ShowKeyOverlay);
             }
             catch (Exception ex)
             {
