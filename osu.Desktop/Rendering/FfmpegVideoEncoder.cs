@@ -19,8 +19,6 @@ namespace osu.Desktop.Rendering
         private Stream? stdin;
         private bool disposed;
 
-        public string? AudioInputPath { get; set; }
-
         public string ExecutablePath => options.FFmpegPath ?? "ffmpeg";
 
         public FfmpegVideoEncoder(ReplayRenderOptions options)
@@ -59,30 +57,26 @@ namespace osu.Desktop.Rendering
             if (!string.IsNullOrEmpty(outDir))
                 Directory.CreateDirectory(outDir);
 
-            bool hasAudio = options.IncludeAudio && !string.IsNullOrEmpty(AudioInputPath) && File.Exists(AudioInputPath);
-
-            // raw RGBA stdin -> video encode, optional audio input -> mux with -shortest.
+            // raw RGBA stdin -> video encode. Audio is muxed in a second pass once all gameplay samples are known.
+            bool isGif = options.Encoder.EndsWith("gif", StringComparison.OrdinalIgnoreCase);
             string fps = options.Fps.ToString(System.Globalization.CultureInfo.InvariantCulture);
             string videoInput = $"-f rawvideo -vcodec rawvideo -pix_fmt rgba -s {options.Width}x{options.Height} -r {fps} -i -";
-            string audioInput = hasAudio ? $" -i \"{AudioInputPath}\"" : string.Empty;
-            string maps = hasAudio ? "-map 0:v -map 1:a" : "-map 0:v";
-            string audioCodec = hasAudio ? $"-c:a aac -b:a {options.AudioBitrate} -shortest" : "-an";
 
             // --quality switches from a fixed bitrate to a constant-quality encode.
             string videoCodec;
 
-            if (options.Quality.HasValue && !options.Encoder.EndsWith("gif", StringComparison.OrdinalIgnoreCase))
+            if (options.Quality.HasValue && !isGif)
                 videoCodec = options.Encoder.StartsWith("libvpx", StringComparison.OrdinalIgnoreCase)
                     ? $"-c:v {options.Encoder} -crf {options.Quality.Value} -b:v 0"
                     : $"-c:v {options.Encoder} -crf {options.Quality.Value} -preset medium";
             else
                 videoCodec = $"-c:v {options.Encoder} -b:v {options.VideoBitrate}";
 
-            string pixelFormat = options.Encoder.EndsWith("gif", StringComparison.OrdinalIgnoreCase) ? string.Empty : $" -pix_fmt {options.PixelFormat}";
+            string pixelFormat = isGif ? string.Empty : $" -pix_fmt {options.PixelFormat}";
             string extra = string.IsNullOrWhiteSpace(options.FFmpegExtraArgs) ? string.Empty : $" {options.FFmpegExtraArgs}";
 
             string args =
-                $"-y {videoInput}{audioInput} {maps} {videoCodec}{pixelFormat} -r {fps} {audioCodec}{extra} \"{options.OutputPath}\"";
+                $"-y {videoInput} -map 0:v {videoCodec}{pixelFormat} -r {fps} -an{extra} \"{options.OutputPath}\"";
 
             Logger.Log($"Starting ffmpeg: {ExecutablePath} {args}", LoggingTarget.Runtime, LogLevel.Debug);
 

@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
 using osu.Framework.IO.Stores;
 using osu.Framework.Logging;
@@ -46,12 +45,12 @@ namespace osu.Desktop.Rendering
 
         private static readonly string[] sample_extensions = { ".wav", ".mp3", ".ogg", ".m4a", ".flac" };
 
-        public static string? Mix(string? musicPath, IReadOnlyList<GameplaySampleEvent> events, IResourceStore<byte[]> resources, string ffmpegPath, bool musicOnly,
+        public static string? Mix(string? musicPath, IReadOnlyList<GameplaySampleEvent> events, IResourceStore<byte[]> resources, string ffmpegPath,
                                 double segmentStartMs, double segmentEndMs, out int mixedSampleCount)
         {
             mixedSampleCount = 0;
 
-            if (musicOnly && musicPath == null && events.Count == 0)
+            if (musicPath == null && events.Count == 0)
                 return null;
 
             // decode music first (also gives us the target duration)

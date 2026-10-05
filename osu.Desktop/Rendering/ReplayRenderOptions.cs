@@ -27,10 +27,9 @@ namespace osu.Desktop.Rendering
         public string? AudioBitrate { get; set; } = "192k";
         public string Encoder { get; set; } = "libx264";
         public string PixelFormat { get; set; } = "yuv420p";
-        public string Container { get; set; } = "mp4";
+        public string OutputFormat { get; set; } = "mp4";
 
         public bool IncludeAudio { get; set; } = true;
-        public bool IncludeVideo { get; set; } = true;
         public bool ShowStoryboard { get; set; } = true;
         public bool ShowHUD { get; set; } = true;
         public bool EndOnFail { get; set; }
@@ -41,7 +40,6 @@ namespace osu.Desktop.Rendering
         /// </summary>
         public bool SettleSeeks { get; set; } = true;
 
-        public string OutputFormat { get; set; } = "mp4";
         public int? Quality { get; set; }
         public double? MaxDurationSeconds { get; set; }
         public double? StartAtSeconds { get; set; }
@@ -77,25 +75,19 @@ namespace osu.Desktop.Rendering
         public double LeadInMs { get; set; } = 2000;
         public double LeadOutMs { get; set; } = 2000;
 
-        public static bool IsRenderIntent(string[] args)
-        {
-            foreach (var a in args)
-            {
-                string key = a.Split('=', 2)[0].Trim().ToLowerInvariant();
-                if (key is "--render" or "-record" or "--record")
-                    return true;
-            }
+        public static bool IsRenderIntent(string[] args) => hasAnyFlag(args, "--render", "-record", "--record");
 
-            return false;
-        }
+        public static bool IsHelpRequest(string[] args) => hasAnyFlag(args, "--help", "-h", "-help", "--render-help");
 
-        public static bool IsHelpRequest(string[] args)
+        private static bool hasAnyFlag(string[] args, params string[] flags)
         {
-            foreach (var a in args)
+            foreach (string arg in args)
             {
-                string key = a.Split('=', 2)[0].Trim().ToLowerInvariant();
-                if (key is "--help" or "-h" or "-help" or "--render-help")
-                    return true;
+                foreach (string flag in flags)
+                {
+                    if (arg.Equals(flag, StringComparison.OrdinalIgnoreCase) || arg.StartsWith(flag + "=", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
             }
 
             return false;
@@ -123,7 +115,6 @@ Optional:
   --bitrate, --video-bitrate <str>      ffmpeg video bitrate (e.g. 8000k). Default: 8000k.
   --encoder <str>                       ffmpeg video encoder (libx264, libx265, h264_nvenc, ...). Default: libx264.
   --no-audio                            Don't mux beatmap audio track.
-  --no-video                            Don't show beatmap background video.
   --no-storyboard                       Disable storyboard.
   --no-hud                              Hide HUD (score, combo, leaderboard) for clean footage.
   --no-progress-bar                     Hide the song progress bar.
@@ -168,68 +159,29 @@ Notes:
 ";
         }
 
+        private static readonly HashSet<string> value_flags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "replay", "r", "beatmap", "osu", "skin", "skinpath", "output", "out",
+            "width", "height", "fps", "bitrate", "video-bitrate", "encoder",
+            "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
+            "output-format", "quality", "max-duration", "start-at", "end-at",
+            "output-dir", "ffmpeg-path", "ffmpeg-extra-args", "cursor-size", "cursor-trail",
+            "bg-dim", "bg-blur", "storage-path"
+        };
+
         public static bool TryParse(string[] args, string cwd, out ReplayRenderOptions? options, out string? error)
         {
             options = new ReplayRenderOptions();
             error = null;
 
-            var map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (string raw in args)
-            {
-                if (!raw.StartsWith('-'))
-                    continue;
-
-                string trimmed = raw.TrimStart('-');
-                string key;
-                string? val;
-
-                int eq = trimmed.IndexOf('=');
-                if (eq >= 0)
-                {
-                    key = trimmed.Substring(0, eq).Trim();
-                    val = trimmed.Substring(eq + 1).Trim().Trim('"');
-                }
-                else
-                {
-                    key = trimmed.Trim();
-                    val = null;
-                }
-
-                // --flag value (space separated) support for known value flags.
-                // Handled in second pass below; store null for now.
-                map[key] = val;
-            }
-
-            // space-separated values: walk original args
-            var valueFlags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "replay", "r", "beatmap", "osu", "skin", "skinpath", "output", "out",
-                "width", "height", "fps", "bitrate", "video-bitrate", "encoder",
-                "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
-                "output-format", "quality", "max-duration", "start-at", "end-at",
-                "output-dir", "ffmpeg-path", "ffmpeg-extra-args", "cursor-size", "cursor-trail",
-                "bg-dim", "bg-blur", "storage-path"
-            };
-
-            for (int i = 0; i < args.Length; i++)
-            {
-                string a = args[i];
-                if (!a.StartsWith('-')) continue;
-                string k = a.TrimStart('-').Split('=', 2)[0];
-                if (!valueFlags.Contains(k)) continue;
-                if (map.TryGetValue(k, out string? existing) && !string.IsNullOrEmpty(existing)) continue;
-
-                if (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
-                    map[k] = args[i + 1].Trim().Trim('"');
-            }
+            var map = parseFlags(args);
 
             string? get(params string[] keys)
             {
-                foreach (var k in keys)
+                foreach (string key in keys)
                 {
-                    if (map.TryGetValue(k, out string? v) && !string.IsNullOrEmpty(v))
-                        return v;
+                    if (map.TryGetValue(key, out string? value) && !string.IsNullOrEmpty(value))
+                        return value;
                 }
 
                 return null;
@@ -237,9 +189,9 @@ Notes:
 
             bool has(params string[] keys)
             {
-                foreach (var k in keys)
+                foreach (string key in keys)
                 {
-                    if (map.ContainsKey(k))
+                    if (map.ContainsKey(key))
                         return true;
                 }
 
@@ -248,7 +200,6 @@ Notes:
 
             string? replay = get("replay", "r");
             string? beatmap = get("beatmap", "osu");
-            string? skin = get("skin", "skinpath");
             string? output = get("output", "out");
 
             if (string.IsNullOrEmpty(replay))
@@ -265,13 +216,10 @@ Notes:
 
             if (string.IsNullOrEmpty(output))
             {
-                // danser-go -record without -out writes to videos/<auto>.mp4; require explicit output for determinism.
-                // Fall back to auto name next to replay if -record was passed.
+                // danser-go -record without -out writes to videos/<auto>.mp4; require explicit output for determinism,
+                // but allow an auto-named file next to the replay when -record was passed.
                 if (has("record", "render"))
-                {
-                    string autoBase = Path.GetFileNameWithoutExtension(replay);
-                    output = Path.Combine(cwd, $"{autoBase}.mp4");
-                }
+                    output = Path.Combine(cwd, $"{Path.GetFileNameWithoutExtension(replay)}.mp4");
                 else
                 {
                     error = "Missing output location. Specify --output <out.mp4> (danser-go: -out=<path>).";
@@ -283,6 +231,7 @@ Notes:
             options.BeatmapPath = Path.GetFullPath(beatmap!, cwd);
             options.OutputPath = Path.GetFullPath(output!, cwd);
 
+            string? skin = get("skin", "skinpath");
             if (!string.IsNullOrEmpty(skin))
                 options.SkinPath = Path.GetFullPath(skin!, cwd);
 
@@ -304,32 +253,14 @@ Notes:
                 return false;
             }
 
-            string? w = get("width");
-            if (w != null && (!int.TryParse(w, out int wi) || wi < 320 || wi > 7680))
-            {
-                error = $"Invalid --width value: {w} (expected 320..7680).";
-                return false;
-            }
+            if (!tryParseInt("--width", get("width"), 320, 7680, out int? width, out error)) return false;
+            if (width.HasValue) options.Width = width.Value;
 
-            if (w != null) options.Width = int.Parse(w);
+            if (!tryParseInt("--height", get("height"), 240, 4320, out int? height, out error)) return false;
+            if (height.HasValue) options.Height = height.Value;
 
-            string? h = get("height");
-            if (h != null && (!int.TryParse(h, out int hi) || hi < 240 || hi > 4320))
-            {
-                error = $"Invalid --height value: {h} (expected 240..4320).";
-                return false;
-            }
-
-            if (h != null) options.Height = int.Parse(h);
-
-            string? fps = get("fps");
-            if (fps != null && (!double.TryParse(fps, out double fpsi) || fpsi < 1 || fpsi > 240))
-            {
-                error = $"Invalid --fps value: {fps} (expected 1..240).";
-                return false;
-            }
-
-            if (fps != null) options.Fps = double.Parse(fps);
+            if (!tryParseDouble("--fps", get("fps"), 1, 240, "1..240", out double? fps, out error)) return false;
+            if (fps.HasValue) options.Fps = fps.Value;
 
             string? bitrate = get("video-bitrate", "bitrate");
             if (!string.IsNullOrEmpty(bitrate)) options.VideoBitrate = bitrate!;
@@ -337,8 +268,8 @@ Notes:
             string? encoder = get("encoder");
             if (!string.IsNullOrEmpty(encoder)) options.Encoder = encoder!;
 
-            string? pixFmt = get("pixel-format");
-            if (!string.IsNullOrEmpty(pixFmt)) options.PixelFormat = pixFmt!;
+            string? pixelFormat = get("pixel-format");
+            if (!string.IsNullOrEmpty(pixelFormat)) options.PixelFormat = pixelFormat!;
 
             string? format = get("output-format", "container");
             if (!string.IsNullOrEmpty(format))
@@ -348,55 +279,27 @@ Notes:
                 switch (options.OutputFormat)
                 {
                     case "webm":
-                        options.Container = "webm";
                         options.PixelFormat = "yuv420p";
                         break;
-                    case "mkv":
-                        options.Container = "mkv";
-                        break;
+
                     case "gif":
-                        options.Container = "gif";
                         options.PixelFormat = "rgb24";
                         options.Encoder = "gif";
-                        break;
-                    default:
-                        options.Container = options.OutputFormat;
                         break;
                 }
             }
 
-            string? quality = get("quality");
-            if (quality != null && !int.TryParse(quality, out int qv))
-            {
-                error = $"Invalid --quality value: {quality} (expected 0..51).";
-                return false;
-            }
-            if (quality != null)
-                options.Quality = Math.Clamp(int.Parse(quality), 0, 51);
+            if (!tryParseInt("--quality", get("quality"), 0, 51, out int? quality, out error)) return false;
+            options.Quality = quality;
 
-            string? maxDuration = get("max-duration");
-            if (maxDuration != null && (!double.TryParse(maxDuration, out double md) || md <= 0))
-            {
-                error = $"Invalid --max-duration value: {maxDuration} (expected seconds > 0).";
-                return false;
-            }
-            if (maxDuration != null) options.MaxDurationSeconds = double.Parse(maxDuration);
+            if (!tryParseDouble("--max-duration", get("max-duration"), double.Epsilon, double.MaxValue, "seconds > 0", out double? maxDuration, out error)) return false;
+            options.MaxDurationSeconds = maxDuration;
 
-            string? startAt = get("start-at");
-            if (startAt != null && (!double.TryParse(startAt, out double s) || s < 0))
-            {
-                error = $"Invalid --start-at value: {startAt} (expected seconds >= 0).";
-                return false;
-            }
-            if (startAt != null) options.StartAtSeconds = double.Parse(startAt);
+            if (!tryParseDouble("--start-at", get("start-at"), 0, double.MaxValue, "seconds >= 0", out double? startAt, out error)) return false;
+            options.StartAtSeconds = startAt;
 
-            string? endAt = get("end-at");
-            if (endAt != null && (!double.TryParse(endAt, out double e) || e <= 0))
-            {
-                error = $"Invalid --end-at value: {endAt} (expected seconds > 0).";
-                return false;
-            }
-            if (endAt != null) options.EndAtSeconds = double.Parse(endAt);
+            if (!tryParseDouble("--end-at", get("end-at"), double.Epsilon, double.MaxValue, "seconds > 0", out double? endAt, out error)) return false;
+            options.EndAtSeconds = endAt;
 
             options.OutputDir = get("output-dir");
             options.AutoName = has("auto-name", "autoname");
@@ -412,53 +315,41 @@ Notes:
             options.ShowLeaderboard = !has("no-leaderboard");
             options.ShowKeyOverlay = !has("no-key-overlay", "hide-key-overlay");
 
-            string? cursorSize = get("cursor-size");
-            if (cursorSize != null && float.TryParse(cursorSize, out float cs) && cs > 0)
-                options.CursorSize = cs;
+            if (float.TryParse(get("cursor-size"), out float cursorSize) && cursorSize > 0)
+                options.CursorSize = cursorSize;
 
-            string? cursorTrail = get("cursor-trail");
-            if (cursorTrail != null && float.TryParse(cursorTrail, out float ct) && ct >= 0)
-                options.CursorTrailMs = ct;
+            if (float.TryParse(get("cursor-trail"), out float cursorTrail) && cursorTrail >= 0)
+                options.CursorTrailMs = cursorTrail;
 
             options.HideCursor = has("hide-cursor", "no-cursor");
 
-            string? bgDim = get("bg-dim");
-            if (bgDim != null && float.TryParse(bgDim, out float bd) && bd >= 0 && bd <= 1)
-                options.BackgroundDim = bd;
+            if (float.TryParse(get("bg-dim"), out float bgDim) && bgDim >= 0 && bgDim <= 1)
+                options.BackgroundDim = bgDim;
 
-            string? bgBlur = get("bg-blur");
-            if (bgBlur != null && float.TryParse(bgBlur, out float bb) && bb >= 0 && bb <= 20)
-                options.BackgroundBlur = bb;
+            if (float.TryParse(get("bg-blur"), out float bgBlur) && bgBlur >= 0 && bgBlur <= 20)
+                options.BackgroundBlur = bgBlur;
 
             options.StoragePath = get("storage-path");
 
-            string? leadIn = get("lead-in");
-            if (leadIn != null && double.TryParse(leadIn, out double li)) options.LeadInMs = li;
-
-            string? leadOut = get("lead-out");
-            if (leadOut != null && double.TryParse(leadOut, out double lo)) options.LeadOutMs = lo;
+            if (double.TryParse(get("lead-in"), out double leadIn)) options.LeadInMs = leadIn;
+            if (double.TryParse(get("lead-out"), out double leadOut)) options.LeadOutMs = leadOut;
 
             options.IncludeAudio = !has("no-audio", "mute");
-            options.IncludeVideo = !has("no-video");
             options.ShowStoryboard = !has("no-storyboard", "no-storyboards");
             options.ShowHUD = !has("no-hud", "hide-hud");
             options.EndOnFail = has("end-on-fail", "stop-on-fail");
             options.SettleSeeks = !has("no-seek-settle", "no-settle-seeks");
 
-            // Ensure output has an extension; default to container.
+            // Ensure output has an extension; default to the container format.
             if (string.IsNullOrEmpty(Path.GetExtension(options.OutputPath)))
-                options.OutputPath += $".{options.Container.TrimStart('.')}";
+                options.OutputPath += $".{options.OutputFormat}";
 
             if (options.AutoName)
             {
                 string dir = !string.IsNullOrEmpty(options.OutputDir) ? Path.GetFullPath(options.OutputDir!, cwd) : cwd;
-
-                string replayName = Path.GetFileNameWithoutExtension(options.ReplayPath);
-                string beatmapName = Path.GetFileNameWithoutExtension(options.BeatmapPath);
-
-                options.OutputPath = Path.Combine(dir, $"{replayName} - {beatmapName}.{options.Container.TrimStart('.')}");
+                options.OutputPath = Path.Combine(dir, $"{Path.GetFileNameWithoutExtension(options.ReplayPath)} - {Path.GetFileNameWithoutExtension(options.BeatmapPath)}.{options.OutputFormat}");
             }
-            else if (!string.IsNullOrEmpty(options.OutputDir) && string.IsNullOrEmpty(Path.GetDirectoryName(Path.GetFileName(options.OutputPath))))
+            else if (!string.IsNullOrEmpty(options.OutputDir))
             {
                 options.OutputPath = Path.Combine(Path.GetFullPath(options.OutputDir!, cwd), Path.GetFileName(options.OutputPath));
             }
@@ -469,6 +360,79 @@ Notes:
                 return false;
             }
 
+            return true;
+        }
+
+        private static Dictionary<string, string?> parseFlags(string[] args)
+        {
+            var map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i];
+
+                if (!arg.StartsWith('-'))
+                    continue;
+
+                string trimmed = arg.TrimStart('-');
+                int eq = trimmed.IndexOf('=');
+                string key;
+                string? value;
+
+                if (eq >= 0)
+                {
+                    key = trimmed.Substring(0, eq).Trim();
+                    value = trimmed.Substring(eq + 1).Trim().Trim('"');
+                }
+                else
+                {
+                    key = trimmed.Trim();
+                    value = null;
+
+                    // support space-separated values for known value-taking flags.
+                    if (value_flags.Contains(key) && i + 1 < args.Length && !args[i + 1].StartsWith('-'))
+                        value = args[++i].Trim().Trim('"');
+                }
+
+                map[key] = value;
+            }
+
+            return map;
+        }
+
+        private static bool tryParseInt(string flag, string? value, int min, int max, out int? result, out string? error)
+        {
+            result = null;
+            error = null;
+
+            if (value == null)
+                return true;
+
+            if (!int.TryParse(value, out int parsed) || parsed < min || parsed > max)
+            {
+                error = $"Invalid {flag} value: {value} (expected {min}..{max}).";
+                return false;
+            }
+
+            result = parsed;
+            return true;
+        }
+
+        private static bool tryParseDouble(string flag, string? value, double min, double max, string range, out double? result, out string? error)
+        {
+            result = null;
+            error = null;
+
+            if (value == null)
+                return true;
+
+            if (!double.TryParse(value, out double parsed) || parsed < min || parsed > max)
+            {
+                error = $"Invalid {flag} value: {value} (expected {range}).";
+                return false;
+            }
+
+            result = parsed;
             return true;
         }
     }
