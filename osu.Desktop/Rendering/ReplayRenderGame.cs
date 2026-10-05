@@ -304,7 +304,7 @@ namespace osu.Desktop.Rendering
             // Warm up: jump to the segment start before capturing anything, so the seek transition
             // and any notifications raised during it aren't baked into the first frame.
             double lastSeekTime = await runOnUpdateThreadAsync(() => player.GameplayTime).ConfigureAwait(false);
-            await seekAndSettleAsync(player, startTime, lastSeekTime).ConfigureAwait(false);
+            await seekAndSettleAsync(player, startTime, lastSeekTime, sampleEvents).ConfigureAwait(false);
             lastSeekTime = startTime;
 
             await runOnUpdateThreadAsync(() =>
@@ -330,7 +330,7 @@ namespace osu.Desktop.Rendering
                 {
                     double time = startTime + i * stepMs;
 
-                    await seekAndSettleAsync(player, time, lastSeekTime).ConfigureAwait(false);
+                    await seekAndSettleAsync(player, time, lastSeekTime, sampleEvents).ConfigureAwait(false);
                     lastSeekTime = time;
 
                     using (var image = await Host.TakeScreenshotAsync().ConfigureAwait(false))
@@ -573,7 +573,7 @@ namespace osu.Desktop.Rendering
         /// capturing immediately after scheduling a seek records stale/intermediate state — visible as the video
         /// fast-forwarding at its start. The settle wait scales with how far the seek jumps.
         /// </remarks>
-        private async Task seekAndSettleAsync(ReplayPlayer player, double targetTime, double previousTime)
+        private async Task seekAndSettleAsync(ReplayPlayer player, double targetTime, double previousTime, List<GameplaySampleEvent>? sampleEvents = null)
         {
             const double settle_tolerance = 100;
 
@@ -588,6 +588,7 @@ namespace osu.Desktop.Rendering
             if (!options.SettleSeeks)
             {
                 await waitForDrawFramesAsync(3).ConfigureAwait(false);
+                dropSeekArtifacts(sampleEvents, jump);
                 return;
             }
 
@@ -615,6 +616,27 @@ namespace osu.Desktop.Rendering
                 : 5;
 
             await waitForDrawFramesAsync(ticks).ConfigureAwait(false);
+
+            dropSeekArtifacts(sampleEvents, jump);
+        }
+
+        /// <summary>
+        /// Discards gameplay samples which were triggered while a large seek jump was being applied.
+        /// </summary>
+        /// <remarks>
+        /// Seeking replays every frame in between, so every hitsound between the old and the new time fires
+        /// in quick succession and would otherwise be stacked onto a single timestamp — audible as a burst of
+        /// hitsounds at the point the renderer jumped to. Those aren't real playback events, so they're dropped.
+        /// </remarks>
+        private static void dropSeekArtifacts(List<GameplaySampleEvent>? sampleEvents, double jump)
+        {
+            if (sampleEvents == null || jump <= 500)
+                return;
+
+            if (sampleEvents.Count > 0)
+                Console.WriteLine($"Discarded {sampleEvents.Count} hitsound events triggered by a {jump:0}ms seek.");
+
+            sampleEvents.Clear();
         }
 
         private Task waitForDrawFramesAsync(int frames)
