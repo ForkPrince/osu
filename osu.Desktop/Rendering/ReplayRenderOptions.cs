@@ -59,6 +59,8 @@ namespace osu.Desktop.Rendering
         public float? BackgroundDim { get; set; }
         public float? BackgroundBlur { get; set; }
 
+        public string? StoragePath { get; set; }
+
         /// <summary>
         /// Extra lead-in/out in ms captured around first/last replay frame.
         /// </summary>
@@ -134,6 +136,7 @@ Optional:
   --no-overwrite                        Fail instead of overwriting an existing output file.
   --ffmpeg-path <path>                  Path to the ffmpeg binary.
   --ffmpeg-extra-args ""<args>""        Extra arguments appended to the ffmpeg command.
+  --storage-path <dir>                  Directory used for the isolated render data (database, logs, imports).
   --lead-in <ms>                        Capture padding before first frame. Default: 2000.
   --lead-out <ms>                       Capture padding after last frame. Default: 2000.
   --help, -h                            Show this help.
@@ -192,7 +195,7 @@ Notes:
                 "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
                 "output-format", "quality", "max-duration", "start-at", "end-at",
                 "output-dir", "ffmpeg-path", "ffmpeg-extra-args", "cursor-size", "cursor-trail",
-                "bg-dim", "bg-blur"
+                "bg-dim", "bg-blur", "storage-path"
             };
 
             for (int i = 0; i < args.Length; i++)
@@ -409,6 +412,8 @@ Notes:
             string? bgBlur = get("bg-blur");
             if (bgBlur != null && float.TryParse(bgBlur, out float bb) && bb >= 0 && bb <= 20)
                 options.BackgroundBlur = bb;
+
+            options.StoragePath = get("storage-path");
 
             string? leadIn = get("lead-in");
             if (leadIn != null && double.TryParse(leadIn, out double li)) options.LeadInMs = li;

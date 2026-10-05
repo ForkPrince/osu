@@ -55,6 +55,7 @@ Run with `--help` to see all options:
 | `--no-overwrite` | Fail instead of overwriting an existing output file. | Overwrite |
 | `--ffmpeg-path <path>` | Path to the ffmpeg binary. | `ffmpeg` |
 | `--ffmpeg-extra-args "<args>"` | Extra arguments appended to the ffmpeg command. | – |
+| `--storage-path <dir>` | Directory used for the isolated render data. | `osu-render` |
 | `--lead-in` / `--lead-out` | Padding (ms) captured around first/last replay frame. | 2000 / 2000 |
 
 ## Notes
