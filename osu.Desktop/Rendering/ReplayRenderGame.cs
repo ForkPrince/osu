@@ -7,7 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Configuration;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
@@ -298,6 +301,18 @@ namespace osu.Desktop.Rendering
 
             // Video is encoded first; gameplay audio can only be mixed once all sample events are known,
             // so audio is muxed in a second pass at the end.
+            await runOnUpdateThreadAsync(() =>
+            {
+                // Flush anything that could still be on screen (import toasts, log-forwarded
+                // error notifications, first-run notices). With the overlay activation disabled
+                // the overlay stops processing new posts for the remainder of the render.
+                ((Bindable<OverlayActivation>)OverlayActivationMode).Value = OverlayActivation.Disabled;
+                player.OverlayActivationMode.Value = OverlayActivation.Disabled;
+                Notifications.State.Value = Visibility.Hidden;
+                Notifications.Hide();
+                return true;
+            }).ConfigureAwait(false);
+
             var encoder = new FfmpegVideoEncoder(options);
             encoder.Start();
 
