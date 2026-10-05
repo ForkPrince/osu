@@ -41,6 +41,7 @@ Run with `--help` to see all options:
 | `--no-leaderboard` | Hide the gameplay leaderboard. | Shown |
 | `--no-key-overlay` | Hide the key overlay. | Shown |
 | `--end-on-fail` | If the replay failed the beatmap, stop at the fail point instead of rendering to the end of the song. | Off |
+| `--no-seek-settle` | Don't wait for seeks to be fully applied before capturing (faster, may show a fast-forward at the start). | Waits |
 | `--start-at <sec>` / `--end-at <sec>` | Export only a window of the replay. | Full |
 | `--max-duration <sec>` | Cap the exported length. | Unlimited |
 | `--output-format <fmt>` | `mp4`, `mkv`, `webm` or `gif`. | `mp4` |
