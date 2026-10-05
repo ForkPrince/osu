@@ -52,6 +52,10 @@ namespace osu.Desktop.Rendering
         public bool ShowLeaderboard { get; set; } = true;
         public bool ShowKeyOverlay { get; set; } = true;
 
+        public float? CursorSize { get; set; }
+        public float? CursorTrailMs { get; set; }
+        public bool HideCursor { get; set; }
+
         /// <summary>
         /// Extra lead-in/out in ms captured around first/last replay frame.
         /// </summary>
@@ -117,6 +121,9 @@ Optional:
   --max-duration <sec>                  Maximum exported length, in seconds.
   --output-format <fmt>                 mp4 (default), mkv, webm or gif.
   --quality <0-51>                      Constant-quality encode (overrides --bitrate). Lower is better quality.
+  --cursor-size <float>                 Gameplay cursor size multiplier.
+  --cursor-trail <ms>                   Cursor trail length (0 disables the trail).
+  --hide-cursor                         Don't render the cursor.
   --output-dir <dir>                    Directory to write the output into.
   --auto-name                           Generate the output filename from the replay and beatmap names.
   --no-overwrite                        Fail instead of overwriting an existing output file.
@@ -179,7 +186,7 @@ Notes:
                 "width", "height", "fps", "bitrate", "video-bitrate", "encoder",
                 "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
                 "output-format", "quality", "max-duration", "start-at", "end-at",
-                "output-dir", "ffmpeg-path", "ffmpeg-extra-args"
+                "output-dir", "ffmpeg-path", "ffmpeg-extra-args", "cursor-size", "cursor-trail"
             };
 
             for (int i = 0; i < args.Length; i++)
@@ -378,6 +385,16 @@ Notes:
             options.ShowComboMeter = !has("no-combo-meter");
             options.ShowLeaderboard = !has("no-leaderboard");
             options.ShowKeyOverlay = !has("no-key-overlay", "hide-key-overlay");
+
+            string? cursorSize = get("cursor-size");
+            if (cursorSize != null && float.TryParse(cursorSize, out float cs) && cs > 0)
+                options.CursorSize = cs;
+
+            string? cursorTrail = get("cursor-trail");
+            if (cursorTrail != null && float.TryParse(cursorTrail, out float ct) && ct >= 0)
+                options.CursorTrailMs = ct;
+
+            options.HideCursor = has("hide-cursor", "no-cursor");
 
             string? leadIn = get("lead-in");
             if (leadIn != null && double.TryParse(leadIn, out double li)) options.LeadInMs = li;
