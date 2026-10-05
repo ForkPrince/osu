@@ -36,6 +36,10 @@ Run with `--help` to see all options:
 | `--no-video` | Hide beatmap background video. | Shown |
 | `--no-storyboard` | Disable storyboard. | Shown |
 | `--no-hud` | Hide HUD for clean footage. | Shown |
+| `--no-progress-bar` | Hide the song progress bar. | Shown |
+| `--no-combo-meter` | Hide the combo counter. | Shown |
+| `--no-leaderboard` | Hide the gameplay leaderboard. | Shown |
+| `--no-key-overlay` | Hide the key overlay. | Shown |
 | `--end-on-fail` | If the replay failed the beatmap, stop at the fail point instead of rendering to the end of the song. | Off |
 | `--start-at <sec>` / `--end-at <sec>` | Export only a window of the replay. | Full |
 | `--max-duration <sec>` | Cap the exported length. | Unlimited |

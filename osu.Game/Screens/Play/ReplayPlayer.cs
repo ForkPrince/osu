@@ -78,7 +78,7 @@ namespace osu.Game.Screens.Play
             : base(configuration)
         {
             this.createScore = createScore;
-            Configuration.ShowLeaderboard = true;
+            Configuration.ShowLeaderboard = configuration?.ShowLeaderboard ?? true;
         }
 
         /// <summary>

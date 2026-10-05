@@ -47,6 +47,10 @@ namespace osu.Desktop.Rendering
 
         public string? FFmpegPath { get; set; }
         public string? FFmpegExtraArgs { get; set; }
+        public bool ShowProgressBar { get; set; } = true;
+        public bool ShowComboMeter { get; set; } = true;
+        public bool ShowLeaderboard { get; set; } = true;
+        public bool ShowKeyOverlay { get; set; } = true;
 
         /// <summary>
         /// Extra lead-in/out in ms captured around first/last replay frame.
@@ -103,6 +107,10 @@ Optional:
   --no-video                            Don't show beatmap background video.
   --no-storyboard                       Disable storyboard.
   --no-hud                              Hide HUD (score, combo, leaderboard) for clean footage.
+  --no-progress-bar                     Hide the song progress bar.
+  --no-combo-meter                      Hide the combo counter.
+  --no-leaderboard                      Hide the gameplay leaderboard.
+  --no-key-overlay                      Hide the key overlay.
   --end-on-fail                         If the replay failed the beatmap, stop at the fail instead of rendering to the end of the song.
   --start-at <sec>                      Start of the exported segment, in seconds.
   --end-at <sec>                        End of the exported segment, in seconds.
@@ -365,6 +373,11 @@ Notes:
             options.Overwrite = !has("no-overwrite");
             options.FFmpegPath = get("ffmpeg-path");
             options.FFmpegExtraArgs = get("ffmpeg-extra-args");
+
+            options.ShowProgressBar = !has("no-progress-bar");
+            options.ShowComboMeter = !has("no-combo-meter");
+            options.ShowLeaderboard = !has("no-leaderboard");
+            options.ShowKeyOverlay = !has("no-key-overlay", "hide-key-overlay");
 
             string? leadIn = get("lead-in");
             if (leadIn != null && double.TryParse(leadIn, out double li)) options.LeadInMs = li;
