@@ -40,6 +40,11 @@ namespace osu.Desktop.Rendering
         public double? MaxDurationSeconds { get; set; }
         public double? StartAtSeconds { get; set; }
         public double? EndAtSeconds { get; set; }
+
+        public string? OutputDir { get; set; }
+        public bool AutoName { get; set; }
+        public bool Overwrite { get; set; } = true;
+
         public string? FFmpegPath { get; set; }
         public string? FFmpegExtraArgs { get; set; }
 
@@ -104,6 +109,9 @@ Optional:
   --max-duration <sec>                  Maximum exported length, in seconds.
   --output-format <fmt>                 mp4 (default), mkv, webm or gif.
   --quality <0-51>                      Constant-quality encode (overrides --bitrate). Lower is better quality.
+  --output-dir <dir>                    Directory to write the output into.
+  --auto-name                           Generate the output filename from the replay and beatmap names.
+  --no-overwrite                        Fail instead of overwriting an existing output file.
   --ffmpeg-path <path>                  Path to the ffmpeg binary.
   --ffmpeg-extra-args ""<args>""        Extra arguments appended to the ffmpeg command.
   --lead-in <ms>                        Capture padding before first frame. Default: 2000.
@@ -163,7 +171,7 @@ Notes:
                 "width", "height", "fps", "bitrate", "video-bitrate", "encoder",
                 "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
                 "output-format", "quality", "max-duration", "start-at", "end-at",
-                "ffmpeg-path", "ffmpeg-extra-args"
+                "output-dir", "ffmpeg-path", "ffmpeg-extra-args"
             };
 
             for (int i = 0; i < args.Length; i++)
@@ -352,6 +360,9 @@ Notes:
             }
             if (endAt != null) options.EndAtSeconds = double.Parse(endAt);
 
+            options.OutputDir = get("output-dir");
+            options.AutoName = has("auto-name", "autoname");
+            options.Overwrite = !has("no-overwrite");
             options.FFmpegPath = get("ffmpeg-path");
             options.FFmpegExtraArgs = get("ffmpeg-extra-args");
 
@@ -370,6 +381,26 @@ Notes:
             // Ensure output has an extension; default to container.
             if (string.IsNullOrEmpty(Path.GetExtension(options.OutputPath)))
                 options.OutputPath += $".{options.Container.TrimStart('.')}";
+
+            if (options.AutoName)
+            {
+                string dir = !string.IsNullOrEmpty(options.OutputDir) ? Path.GetFullPath(options.OutputDir!, cwd) : cwd;
+
+                string replayName = Path.GetFileNameWithoutExtension(options.ReplayPath);
+                string beatmapName = Path.GetFileNameWithoutExtension(options.BeatmapPath);
+
+                options.OutputPath = Path.Combine(dir, $"{replayName} - {beatmapName}.{options.Container.TrimStart('.')}");
+            }
+            else if (!string.IsNullOrEmpty(options.OutputDir) && string.IsNullOrEmpty(Path.GetDirectoryName(Path.GetFileName(options.OutputPath))))
+            {
+                options.OutputPath = Path.Combine(Path.GetFullPath(options.OutputDir!, cwd), Path.GetFileName(options.OutputPath));
+            }
+
+            if (!options.Overwrite && File.Exists(options.OutputPath))
+            {
+                error = $"Output file already exists (and --no-overwrite was passed): {options.OutputPath}";
+                return false;
+            }
 
             return true;
         }
