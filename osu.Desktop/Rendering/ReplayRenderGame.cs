@@ -67,8 +67,8 @@ namespace osu.Desktop.Rendering
             Logger.Log($"Render: replay={options.ReplayPath} beatmap={options.BeatmapPath} output={options.OutputPath} {options.Width}x{options.Height}@{options.Fps}",
                 LoggingTarget.Runtime, LogLevel.Debug);
 
-            if (!FfmpegVideoEncoder.IsAvailable())
-                throw new InvalidOperationException("ffmpeg was not found on PATH. Install ffmpeg to render videos.");
+            if (!FfmpegVideoEncoder.IsAvailable(options))
+                throw new InvalidOperationException("ffmpeg was not found on PATH. Install ffmpeg or pass --ffmpeg-path.");
 
             applyRenderConfig();
 
