@@ -133,5 +133,10 @@ namespace osu.Game.Screens.Play.HUD
         }
 
         public void AddAtStart(PlayerSettingsGroup drawable) => content.Insert(-1, drawable);
+
+        /// <summary>
+        /// Hides the settings toggle button. Used by the headless renderer to produce clean footage.
+        /// </summary>
+        public void HideSettingsButton() => button.Alpha = 0;
     }
 }

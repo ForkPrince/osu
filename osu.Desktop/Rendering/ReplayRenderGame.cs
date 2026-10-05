@@ -217,6 +217,9 @@ namespace osu.Desktop.Rendering
 
                 applyHudOverrides(player);
 
+                // The replay settings cog is never useful in exported footage.
+                player.ReplayOverlay.Settings.HideSettingsButton();
+
                 if (options.HideCursor)
                     GlobalCursorDisplay.Alpha = 0;
 
@@ -303,6 +306,10 @@ namespace osu.Desktop.Rendering
                 player.OverlayActivationMode.Value = OverlayActivation.Disabled;
                 Notifications.State.Value = Visibility.Hidden;
                 Notifications.Hide();
+                // Hiding the overlay routes new notifications to the toast tray, and "important" toasts
+                // live for 12s (default) which is long enough to land on the first captured frame.
+                // The renderer never wants notifications on screen, so hide the whole overlay itself.
+                Notifications.Alpha = 0;
                 return true;
             }).ConfigureAwait(false);
 
