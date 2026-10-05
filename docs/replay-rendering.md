@@ -33,7 +33,6 @@ Run with `--help` to see all options:
 | `--bitrate`, `--video-bitrate` | ffmpeg video bitrate (e.g. `8000k`). | `8000k` |
 | `--encoder` | ffmpeg video encoder (`libx264`, `libx265`, `h264_nvenc`, …). | `libx264` |
 | `--no-audio` | Don't mux the beatmap's audio track. | Audio included |
-| `--no-video` | Hide beatmap background video. | Shown |
 | `--no-storyboard` | Disable storyboard. | Shown |
 | `--no-hud` | Hide HUD for clean footage. | Shown |
 | `--no-progress-bar` | Hide the song progress bar. | Shown |

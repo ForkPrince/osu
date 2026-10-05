@@ -747,11 +747,6 @@ namespace osu.Game.Screens.Play
         /// </summary>
         public void PauseGameplay() => GameplayClockContainer.Stop();
 
-        /// <summary>
-        /// Resume gameplay clock, for offline rendering / tooling.
-        /// </summary>
-        public void ResumeGameplay() => GameplayClockContainer.Start();
-
         private ScheduledDelegate frameStablePlaybackResetDelegate;
 
         /// <summary>

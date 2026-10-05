@@ -9,10 +9,8 @@ using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Configuration;
-using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Logging;
-using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
@@ -21,9 +19,7 @@ using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
-using osu.Game.Screens;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 using SixLabors.ImageSharp;
@@ -55,7 +51,7 @@ namespace osu.Desktop.Rendering
             {
                 try
                 {
-                    await RunRenderAsync().ConfigureAwait(false);
+                    await runRenderAsync().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -66,7 +62,7 @@ namespace osu.Desktop.Rendering
             });
         }
 
-        private async Task RunRenderAsync()
+        private async Task runRenderAsync()
         {
             Logger.Log($"Render: replay={options.ReplayPath} beatmap={options.BeatmapPath} output={options.OutputPath} {options.Width}x{options.Height}@{options.Fps}",
                 LoggingTarget.Runtime, LogLevel.Debug);
@@ -204,15 +200,6 @@ namespace osu.Desktop.Rendering
 
             Schedule(player.PauseGameplay);
             await Task.Delay(500).ConfigureAwait(false);
-
-            await runOnUpdateThreadAsync(() =>
-            {
-                // Match real gameplay state (overlays disabled) and flush any toasts
-                // posted before capture (import notices, log forwards, first-run notices).
-                // Exports must not contain notification UI.
-                player.OverlayActivationMode.Value = OverlayActivation.Disabled;
-                return true;
-            }).ConfigureAwait(false);
 
             // Capture the gameplay samples the ruleset triggers (hitsounds, slider ticks, etc.) as they happen,
             // so they can be mixed into the exported audio track afterwards.
@@ -373,7 +360,6 @@ namespace osu.Desktop.Rendering
                         wantHitsounds ? sampleEvents : Array.Empty<GameplaySampleEvent>(),
                         Resources,
                         options.FFmpegPath ?? "ffmpeg",
-                        options.HitsoundsOnly,
                         startTime,
                         endTime,
                         out int mixed);
@@ -659,13 +645,8 @@ namespace osu.Desktop.Rendering
 
         private static void copyToBuffer(Image<Rgba32> image, byte[] buffer, int expectedWidth, int expectedHeight)
         {
-            // Screenshots should already match the window size, but be defensive: centre-crop or fail clearly.
-            if (image.Width != expectedWidth || image.Height != expectedHeight)
-            {
-                // Resize via simple check: if mismatch, we still copy row-by-row with clamping to avoid OOB.
-                // Most setups will have exact match after WindowedSize applies.
-            }
-
+            // Screenshots should match the probed framebuffer size, but be defensive and clamp
+            // (padding any remainder with black) so a mismatch can never write out of bounds.
             int w = Math.Min(image.Width, expectedWidth);
             int h = Math.Min(image.Height, expectedHeight);
 
