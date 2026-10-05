@@ -37,6 +37,8 @@ Run with `--help` to see all options:
 | `--no-storyboard` | Disable storyboard. | Shown |
 | `--no-hud` | Hide HUD for clean footage. | Shown |
 | `--end-on-fail` | If the replay failed the beatmap, stop at the fail point instead of rendering to the end of the song. | Off |
+| `--start-at <sec>` / `--end-at <sec>` | Export only a window of the replay. | Full |
+| `--max-duration <sec>` | Cap the exported length. | Unlimited |
 | `--output-format <fmt>` | `mp4`, `mkv`, `webm` or `gif`. | `mp4` |
 | `--quality <0-51>` | Constant-quality encode (overrides `--bitrate`), lower is better. | Bitrate |
 | `--ffmpeg-path <path>` | Path to the ffmpeg binary. | `ffmpeg` |

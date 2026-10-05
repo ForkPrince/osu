@@ -37,6 +37,9 @@ namespace osu.Desktop.Rendering
 
         public string OutputFormat { get; set; } = "mp4";
         public int? Quality { get; set; }
+        public double? MaxDurationSeconds { get; set; }
+        public double? StartAtSeconds { get; set; }
+        public double? EndAtSeconds { get; set; }
         public string? FFmpegPath { get; set; }
         public string? FFmpegExtraArgs { get; set; }
 
@@ -96,6 +99,9 @@ Optional:
   --no-storyboard                       Disable storyboard.
   --no-hud                              Hide HUD (score, combo, leaderboard) for clean footage.
   --end-on-fail                         If the replay failed the beatmap, stop at the fail instead of rendering to the end of the song.
+  --start-at <sec>                      Start of the exported segment, in seconds.
+  --end-at <sec>                        End of the exported segment, in seconds.
+  --max-duration <sec>                  Maximum exported length, in seconds.
   --output-format <fmt>                 mp4 (default), mkv, webm or gif.
   --quality <0-51>                      Constant-quality encode (overrides --bitrate). Lower is better quality.
   --ffmpeg-path <path>                  Path to the ffmpeg binary.
@@ -156,7 +162,8 @@ Notes:
                 "replay", "r", "beatmap", "osu", "skin", "skinpath", "output", "out",
                 "width", "height", "fps", "bitrate", "video-bitrate", "encoder",
                 "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
-                "output-format", "quality", "ffmpeg-path", "ffmpeg-extra-args"
+                "output-format", "quality", "max-duration", "start-at", "end-at",
+                "ffmpeg-path", "ffmpeg-extra-args"
             };
 
             for (int i = 0; i < args.Length; i++)
@@ -320,6 +327,30 @@ Notes:
             }
             if (quality != null)
                 options.Quality = Math.Clamp(int.Parse(quality), 0, 51);
+
+            string? maxDuration = get("max-duration");
+            if (maxDuration != null && (!double.TryParse(maxDuration, out double md) || md <= 0))
+            {
+                error = $"Invalid --max-duration value: {maxDuration} (expected seconds > 0).";
+                return false;
+            }
+            if (maxDuration != null) options.MaxDurationSeconds = double.Parse(maxDuration);
+
+            string? startAt = get("start-at");
+            if (startAt != null && (!double.TryParse(startAt, out double s) || s < 0))
+            {
+                error = $"Invalid --start-at value: {startAt} (expected seconds >= 0).";
+                return false;
+            }
+            if (startAt != null) options.StartAtSeconds = double.Parse(startAt);
+
+            string? endAt = get("end-at");
+            if (endAt != null && (!double.TryParse(endAt, out double e) || e <= 0))
+            {
+                error = $"Invalid --end-at value: {endAt} (expected seconds > 0).";
+                return false;
+            }
+            if (endAt != null) options.EndAtSeconds = double.Parse(endAt);
 
             options.FFmpegPath = get("ffmpeg-path");
             options.FFmpegExtraArgs = get("ffmpeg-extra-args");
