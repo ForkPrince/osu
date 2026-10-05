@@ -56,6 +56,9 @@ namespace osu.Desktop.Rendering
         public float? CursorTrailMs { get; set; }
         public bool HideCursor { get; set; }
 
+        public float? BackgroundDim { get; set; }
+        public float? BackgroundBlur { get; set; }
+
         /// <summary>
         /// Extra lead-in/out in ms captured around first/last replay frame.
         /// </summary>
@@ -124,6 +127,8 @@ Optional:
   --cursor-size <float>                 Gameplay cursor size multiplier.
   --cursor-trail <ms>                   Cursor trail length (0 disables the trail).
   --hide-cursor                         Don't render the cursor.
+  --bg-dim <0-1>                        Background dim level.
+  --bg-blur <0-20>                      Background blur level.
   --output-dir <dir>                    Directory to write the output into.
   --auto-name                           Generate the output filename from the replay and beatmap names.
   --no-overwrite                        Fail instead of overwriting an existing output file.
@@ -186,7 +191,8 @@ Notes:
                 "width", "height", "fps", "bitrate", "video-bitrate", "encoder",
                 "pixel-format", "container", "lead-in", "lead-out", "audio-bitrate",
                 "output-format", "quality", "max-duration", "start-at", "end-at",
-                "output-dir", "ffmpeg-path", "ffmpeg-extra-args", "cursor-size", "cursor-trail"
+                "output-dir", "ffmpeg-path", "ffmpeg-extra-args", "cursor-size", "cursor-trail",
+                "bg-dim", "bg-blur"
             };
 
             for (int i = 0; i < args.Length; i++)
@@ -395,6 +401,14 @@ Notes:
                 options.CursorTrailMs = ct;
 
             options.HideCursor = has("hide-cursor", "no-cursor");
+
+            string? bgDim = get("bg-dim");
+            if (bgDim != null && float.TryParse(bgDim, out float bd) && bd >= 0 && bd <= 1)
+                options.BackgroundDim = bd;
+
+            string? bgBlur = get("bg-blur");
+            if (bgBlur != null && float.TryParse(bgBlur, out float bb) && bb >= 0 && bb <= 20)
+                options.BackgroundBlur = bb;
 
             string? leadIn = get("lead-in");
             if (leadIn != null && double.TryParse(leadIn, out double li)) options.LeadInMs = li;
