@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -210,8 +211,20 @@ namespace osu.Desktop.Rendering
                 return true;
             }).ConfigureAwait(false);
 
+            // Capture the gameplay samples the ruleset triggers (hitsounds, slider ticks, etc.) as they happen,
+            // so they can be mixed into the exported audio track afterwards.
+            var sampleEvents = new List<GameplaySampleEvent>();
+
             await runOnUpdateThreadAsync(() =>
             {
+                player.GameplayState.LastPlayedSamples.BindValueChanged(e =>
+                {
+                    if (e.NewValue == null || e.NewValue.Length == 0)
+                        return;
+
+                    sampleEvents.Add(new GameplaySampleEvent(player.GameplayTime, e.NewValue));
+                });
+
                 applyHudOverrides(player);
 
                 if (options.HideCursor)
@@ -283,7 +296,9 @@ namespace osu.Desktop.Rendering
                 }
             }
 
-            var encoder = new FfmpegVideoEncoder(options) { AudioInputPath = audioPath };
+            // Video is encoded first; gameplay audio can only be mixed once all sample events are known,
+            // so audio is muxed in a second pass at the end.
+            var encoder = new FfmpegVideoEncoder(options);
             encoder.Start();
 
             byte[] pixelBuffer = new byte[options.Width * options.Height * 4];
@@ -320,6 +335,33 @@ namespace osu.Desktop.Rendering
                     throw new InvalidOperationException($"ffmpeg exited with code {ffmpegExit}. Output may be incomplete.");
             }
 
+            // Second pass: mix the music track with gameplay samples (hitsounds, ticks, etc.) and mux.
+            if (options.IncludeAudio && !options.NoHitsounds && sampleEvents.Count > 0)
+            {
+                string? mixedPath = GameplayAudioMixer.Mix(
+                    options.HitsoundsOnly ? null : audioPath,
+                    sampleEvents,
+                    Resources,
+                    options.FFmpegPath ?? "ffmpeg",
+                    options.HitsoundsOnly,
+                    out int mixed);
+
+                if (mixedPath != null)
+                {
+                    Console.WriteLine(mixed > 0
+                        ? $"Mixed {mixed} gameplay sample events into the audio track."
+                        : "Gameplay samples were triggered but none could be resolved; using music only.");
+
+                    muxAudio(options.OutputPath, mixedPath, options.FFmpegPath ?? "ffmpeg", options.AudioBitrate ?? "192k");
+
+                    try { File.Delete(mixedPath); } catch { }
+                }
+            }
+            else if (options.IncludeAudio && audioPath != null)
+            {
+                muxAudio(options.OutputPath, audioPath, options.FFmpegPath ?? "ffmpeg", options.AudioBitrate ?? "192k");
+            }
+
             Logger.Log($"Render complete: {options.OutputPath}", LoggingTarget.Runtime, LogLevel.Debug);
             Console.WriteLine($"Render complete: {options.OutputPath}");
 
@@ -329,6 +371,30 @@ namespace osu.Desktop.Rendering
             }
 
             finish(0);
+        }
+
+        private static void muxAudio(string videoPath, string audioPath, string ffmpegPath, string audioBitrate)
+        {
+            string tempVideo = Path.Combine(Path.GetTempPath(), $"osu-render-mux-{Guid.NewGuid():N}{Path.GetExtension(videoPath)}");
+
+            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = ffmpegPath,
+                Arguments = $"-y -v error -i \"{videoPath}\" -i \"{audioPath}\" -map 0:v -map 1:a -c:v copy -c:a aac -b:a {audioBitrate} -shortest \"{tempVideo}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = true,
+            });
+
+            if (process == null)
+                throw new InvalidOperationException("Failed to start ffmpeg for audio muxing.");
+
+            process.WaitForExit(600000);
+
+            if (process.ExitCode != 0 || !File.Exists(tempVideo))
+                throw new InvalidOperationException($"Failed to mux audio into the rendered video (ffmpeg exit code {process.ExitCode}).");
+
+            File.Move(tempVideo, videoPath, true);
         }
 
         /// <summary>

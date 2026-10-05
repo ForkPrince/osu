@@ -47,6 +47,10 @@ namespace osu.Desktop.Rendering
 
         public string? FFmpegPath { get; set; }
         public string? FFmpegExtraArgs { get; set; }
+
+        public bool NoHitsounds { get; set; }
+        public bool HitsoundsOnly { get; set; }
+
         public bool ShowProgressBar { get; set; } = true;
         public bool ShowComboMeter { get; set; } = true;
         public bool ShowLeaderboard { get; set; } = true;
@@ -126,6 +130,8 @@ Optional:
   --max-duration <sec>                  Maximum exported length, in seconds.
   --output-format <fmt>                 mp4 (default), mkv, webm or gif.
   --quality <0-51>                      Constant-quality encode (overrides --bitrate). Lower is better quality.
+  --no-hitsounds                        Don't mix gameplay hitsounds into the exported audio.
+  --hitsounds-only                      Only export gameplay hitsounds (no music track).
   --cursor-size <float>                 Gameplay cursor size multiplier.
   --cursor-trail <ms>                   Cursor trail length (0 disables the trail).
   --hide-cursor                         Don't render the cursor.
@@ -150,7 +156,8 @@ Notes:
   - Requires ffmpeg on PATH. Video is piped as raw RGBA to ffmpeg (libx264/yuv420p by default).
   - Beatmap is imported first (replay lookup needs its MD5 hash), then skin, then replay.
   - Input files are never modified or deleted; imports run on temp copies.
-  - Audio is the beatmap's audio track muxed with -shortest; hitsounds come through gameplay capture only if audible at render time.
+  - Audio is the beatmap's track with gameplay samples (hitsounds, ticks) mixed in at their exact gameplay times.
+  - Use --hitsounds-only or --no-hitsounds to change what ends up in the audio track.
 ";
         }
 
@@ -389,6 +396,9 @@ Notes:
             options.Overwrite = !has("no-overwrite");
             options.FFmpegPath = get("ffmpeg-path");
             options.FFmpegExtraArgs = get("ffmpeg-extra-args");
+
+            options.NoHitsounds = has("no-hitsounds", "hitsounds-off");
+            options.HitsoundsOnly = has("hitsounds-only", "hitsounds-only-mode");
 
             options.ShowProgressBar = !has("no-progress-bar");
             options.ShowComboMeter = !has("no-combo-meter");

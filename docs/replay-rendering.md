@@ -45,6 +45,8 @@ Run with `--help` to see all options:
 | `--max-duration <sec>` | Cap the exported length. | Unlimited |
 | `--output-format <fmt>` | `mp4`, `mkv`, `webm` or `gif`. | `mp4` |
 | `--quality <0-51>` | Constant-quality encode (overrides `--bitrate`), lower is better. | Bitrate |
+| `--no-hitsounds` | Don't mix gameplay hitsounds into the audio. | Mixed in |
+| `--hitsounds-only` | Only export gameplay hitsounds (no music). | Off |
 | `--cursor-size <float>` | Gameplay cursor size multiplier. | `1` |
 | `--cursor-trail <ms>` | Cursor trail length (`0` disables the trail). | Skin default |
 | `--hide-cursor` | Don't render the cursor. | Shown |
@@ -60,8 +62,9 @@ Run with `--help` to see all options:
 
 ## Notes
 
-- Requires `ffmpeg` on `PATH`. Video is piped as raw RGBA to ffmpeg (`libx264`/`yuv420p` by default);
-  the beatmap's audio track is muxed with `-shortest`.
+- Requires `ffmpeg` on `PATH`. Video is piped as raw RGBA to ffmpeg.
+- The audio track is the beatmap's music with gameplay samples (hitsounds, ticks, etc.) mixed in at
+  their exact gameplay times. Use `--hitsounds-only` or `--no-hitsounds` to change that.
 - Renders use an isolated `osu-render` data directory, so your main game library is untouched.
 - Input files are never modified or deleted (imports run on temp copies).
 - Exports contain no notification UI: import prompts, toasts and first-run overlays are suppressed during rendering.
