@@ -47,7 +47,7 @@ namespace osu.Desktop.Rendering
         private static readonly string[] sample_extensions = { ".wav", ".mp3", ".ogg", ".m4a", ".flac" };
 
         public static string? Mix(string? musicPath, IReadOnlyList<GameplaySampleEvent> events, IResourceStore<byte[]> resources, string ffmpegPath, bool musicOnly,
-                                out int mixedSampleCount)
+                                double segmentStartMs, double segmentEndMs, out int mixedSampleCount)
         {
             mixedSampleCount = 0;
 
@@ -56,7 +56,9 @@ namespace osu.Desktop.Rendering
 
             // decode music first (also gives us the target duration)
             float[]? music = musicPath == null ? null : decodeToPcm(musicPath, ffmpegPath);
-            long musicLength = music?.Length ?? 0;
+            // music must be shifted into the exported segment as well.
+            int musicSkip = (int)(Math.Max(0, segmentStartMs) * sample_rate / 1000.0) * channels;
+            long musicLength = music == null ? 0 : Math.Max(0, music.Length - musicSkip);
 
             // group events by resolved sample file so each file is only decoded once
             var decodedCache = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
@@ -65,7 +67,11 @@ namespace osu.Desktop.Rendering
 
             foreach (var e in events)
             {
-                double localTime = e.Time;
+                // events are captured in gameplay time; shift them into the exported segment's timeline.
+                double localTime = e.Time - segmentStartMs;
+
+                if (localTime < -20 || localTime > segmentEndMs + 2000)
+                    continue;
 
                 foreach (var info in e.Samples)
                 {
@@ -103,7 +109,7 @@ namespace osu.Desktop.Rendering
                 int count = (int)Math.Min(musicLength, mix.Length);
 
                 for (int i = 0; i < count; i++)
-                    mix[i] += music[i] * gain;
+                    mix[i] += music[musicSkip + i] * gain;
             }
 
             foreach (var (offset, pcm, gain) in timeline)

@@ -335,31 +335,45 @@ namespace osu.Desktop.Rendering
                     throw new InvalidOperationException($"ffmpeg exited with code {ffmpegExit}. Output may be incomplete.");
             }
 
-            // Second pass: mix the music track with gameplay samples (hitsounds, ticks, etc.) and mux.
-            if (options.IncludeAudio && !options.NoHitsounds && sampleEvents.Count > 0)
+            // Second pass: build the exported audio track and mux it into the video.
+            //
+            // The music has to be shifted into the exported segment window, so every case that isn't a
+            // full-length music-only render goes through the mixer (which handles both the shift and the
+            // optional gameplay samples).
+            if (options.IncludeAudio)
             {
-                string? mixedPath = GameplayAudioMixer.Mix(
-                    options.HitsoundsOnly ? null : audioPath,
-                    sampleEvents,
-                    Resources,
-                    options.FFmpegPath ?? "ffmpeg",
-                    options.HitsoundsOnly,
-                    out int mixed);
+                bool wantHitsounds = !options.NoHitsounds && sampleEvents.Count > 0;
+                bool requiresMixing = wantHitsounds || options.HitsoundsOnly || startTime > 0;
 
-                if (mixedPath != null)
+                if (requiresMixing)
                 {
-                    Console.WriteLine(mixed > 0
-                        ? $"Mixed {mixed} gameplay sample events into the audio track."
-                        : "Gameplay samples were triggered but none could be resolved; using music only.");
+                    string? mixedPath = GameplayAudioMixer.Mix(
+                        options.HitsoundsOnly ? null : audioPath,
+                        wantHitsounds ? sampleEvents : Array.Empty<GameplaySampleEvent>(),
+                        Resources,
+                        options.FFmpegPath ?? "ffmpeg",
+                        options.HitsoundsOnly,
+                        startTime,
+                        endTime,
+                        out int mixed);
 
-                    muxAudio(options.OutputPath, mixedPath, options.FFmpegPath ?? "ffmpeg", options.AudioBitrate ?? "192k");
+                    if (mixedPath != null)
+                    {
+                        if (mixed > 0)
+                            Console.WriteLine($"Mixed {mixed} gameplay sample events into the audio track.");
 
-                    try { File.Delete(mixedPath); } catch { }
+                        muxAudio(options.OutputPath, mixedPath, options.FFmpegPath ?? "ffmpeg", options.AudioBitrate ?? "192k");
+
+                        if (Environment.GetEnvironmentVariable("OSU_RENDER_KEEP_AUDIO") != "1")
+                        {
+                            try { File.Delete(mixedPath); } catch { }
+                        }
+                    }
                 }
-            }
-            else if (options.IncludeAudio && audioPath != null)
-            {
-                muxAudio(options.OutputPath, audioPath, options.FFmpegPath ?? "ffmpeg", options.AudioBitrate ?? "192k");
+                else if (audioPath != null)
+                {
+                    muxAudio(options.OutputPath, audioPath, options.FFmpegPath ?? "ffmpeg", options.AudioBitrate ?? "192k");
+                }
             }
 
             Logger.Log($"Render complete: {options.OutputPath}", LoggingTarget.Runtime, LogLevel.Debug);
