@@ -239,6 +239,16 @@ namespace osu.Desktop.Rendering
                 endTime = Math.Max(lastFrame + options.LeadOutMs, lastObject + options.LeadOutMs);
             }
 
+            // --start-at / --end-at / --max-duration trim the captured window.
+            if (options.StartAtSeconds.HasValue)
+                startTime = Math.Max(startTime, options.StartAtSeconds.Value * 1000);
+
+            if (options.EndAtSeconds.HasValue)
+                endTime = Math.Min(endTime, options.EndAtSeconds.Value * 1000);
+
+            if (options.MaxDurationSeconds.HasValue)
+                endTime = Math.Min(endTime, startTime + options.MaxDurationSeconds.Value * 1000);
+
             double stepMs = 1000.0 / options.Fps;
             int totalFrames = Math.Max(1, (int)Math.Ceiling((endTime - startTime) / stepMs));
 
