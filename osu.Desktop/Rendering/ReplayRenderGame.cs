@@ -301,6 +301,12 @@ namespace osu.Desktop.Rendering
 
             // Video is encoded first; gameplay audio can only be mixed once all sample events are known,
             // so audio is muxed in a second pass at the end.
+            // Warm up: jump to the segment start before capturing anything, so the seek transition
+            // and any notifications raised during it aren't baked into the first frame.
+            double lastSeekTime = await runOnUpdateThreadAsync(() => player.GameplayTime).ConfigureAwait(false);
+            await seekAndSettleAsync(player, startTime, lastSeekTime).ConfigureAwait(false);
+            lastSeekTime = startTime;
+
             await runOnUpdateThreadAsync(() =>
             {
                 // Flush anything that could still be on screen (import toasts, log-forwarded
@@ -324,8 +330,8 @@ namespace osu.Desktop.Rendering
                 {
                     double time = startTime + i * stepMs;
 
-                    Schedule(() => player.Seek(time));
-                    await waitForDrawFramesAsync(3).ConfigureAwait(false);
+                    await seekAndSettleAsync(player, time, lastSeekTime).ConfigureAwait(false);
+                    lastSeekTime = time;
 
                     using (var image = await Host.TakeScreenshotAsync().ConfigureAwait(false))
                     {
@@ -557,6 +563,58 @@ namespace osu.Desktop.Rendering
             string tempPath = Path.Combine(Path.GetTempPath(), $"osu-render-{Guid.NewGuid():N}-{Path.GetFileName(sourcePath)}");
             File.Copy(sourcePath, tempPath);
             return tempPath;
+        }
+
+        /// <summary>
+        /// Seeks the gameplay clock and waits for the seek to actually be applied before a frame is captured.
+        /// </summary>
+        /// <remarks>
+        /// Frame-stable seeks are applied over several frames (a large jump replays every frame in between), so
+        /// capturing immediately after scheduling a seek records stale/intermediate state — visible as the video
+        /// fast-forwarding at its start. The settle wait scales with how far the seek jumps.
+        /// </remarks>
+        private async Task seekAndSettleAsync(ReplayPlayer player, double targetTime, double previousTime)
+        {
+            const double settle_tolerance = 100;
+
+            double jump = Math.Abs(targetTime - previousTime);
+
+            await runOnUpdateThreadAsync(() =>
+            {
+                player.Seek(targetTime);
+                return true;
+            }).ConfigureAwait(false);
+
+            if (!options.SettleSeeks)
+            {
+                await waitForDrawFramesAsync(3).ConfigureAwait(false);
+                return;
+            }
+
+            double currentTime = await runOnUpdateThreadAsync(() => player.GameplayTime).ConfigureAwait(false);
+
+            if (Math.Abs(currentTime - targetTime) > settle_tolerance)
+            {
+                var deadline = DateTime.UtcNow.AddSeconds(15);
+
+                while (DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(20).ConfigureAwait(false);
+
+                    currentTime = await runOnUpdateThreadAsync(() => player.GameplayTime).ConfigureAwait(false);
+
+                    if (Math.Abs(currentTime - targetTime) <= settle_tolerance)
+                        break;
+                }
+            }
+
+            // ~10ms per draw-thread tick. A jump of N ms replays N ms of gameplay, which needs
+            // time to be applied to the drawable ruleset, so scale the wait with the jump size.
+            int ticks = jump > 500
+                ? (int)Math.Clamp(10 + jump / 100, 10, 250)
+                : 5;
+
+            await waitForDrawFramesAsync(ticks).ConfigureAwait(false);
         }
 
         private Task waitForDrawFramesAsync(int frames)

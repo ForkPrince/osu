@@ -35,6 +35,12 @@ namespace osu.Desktop.Rendering
         public bool ShowHUD { get; set; } = true;
         public bool EndOnFail { get; set; }
 
+        /// <summary>
+        /// Whether to wait for a seek to be fully applied (visually) before capturing a frame.
+        /// Disable for faster renders on maps where the transition isn't visible.
+        /// </summary>
+        public bool SettleSeeks { get; set; } = true;
+
         public string OutputFormat { get; set; } = "mp4";
         public int? Quality { get; set; }
         public double? MaxDurationSeconds { get; set; }
@@ -125,6 +131,7 @@ Optional:
   --no-leaderboard                      Hide the gameplay leaderboard.
   --no-key-overlay                      Hide the key overlay.
   --end-on-fail                         If the replay failed the beatmap, stop at the fail instead of rendering to the end of the song.
+  --no-seek-settle                     Don't wait for seeks to be fully applied before capturing (faster, may show a fast-forward at the start).
   --start-at <sec>                      Start of the exported segment, in seconds.
   --end-at <sec>                        End of the exported segment, in seconds.
   --max-duration <sec>                  Maximum exported length, in seconds.
@@ -436,6 +443,7 @@ Notes:
             options.ShowStoryboard = !has("no-storyboard", "no-storyboards");
             options.ShowHUD = !has("no-hud", "hide-hud");
             options.EndOnFail = has("end-on-fail", "stop-on-fail");
+            options.SettleSeeks = !has("no-seek-settle", "no-settle-seeks");
 
             // Ensure output has an extension; default to container.
             if (string.IsNullOrEmpty(Path.GetExtension(options.OutputPath)))
