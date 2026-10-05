@@ -45,6 +45,9 @@ Run with `--help` to see all options:
 | `--max-duration <sec>` | Cap the exported length. | Unlimited |
 | `--output-format <fmt>` | `mp4`, `mkv`, `webm` or `gif`. | `mp4` |
 | `--quality <0-51>` | Constant-quality encode (overrides `--bitrate`), lower is better. | Bitrate |
+| `--cursor-size <float>` | Gameplay cursor size multiplier. | `1` |
+| `--cursor-trail <ms>` | Cursor trail length (`0` disables the trail). | Skin default |
+| `--hide-cursor` | Don't render the cursor. | Shown |
 | `--output-dir <dir>` | Directory to write the output into. | – |
 | `--auto-name` | Generate the filename from the replay and beatmap names. | Off |
 | `--no-overwrite` | Fail instead of overwriting an existing output file. | Overwrite |

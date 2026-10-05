@@ -213,6 +213,10 @@ namespace osu.Desktop.Rendering
             await runOnUpdateThreadAsync(() =>
             {
                 applyHudOverrides(player);
+
+                if (options.HideCursor)
+                    GlobalCursorDisplay.Alpha = 0;
+
                 return true;
             }).ConfigureAwait(false);
 
@@ -395,6 +399,9 @@ namespace osu.Desktop.Rendering
                 LocalConfig.SetValue(OsuSetting.ShowFirstRunSetup, false);
                 LocalConfig.SetValue(OsuSetting.GameplayLeaderboard, options.ShowLeaderboard);
                 LocalConfig.SetValue(OsuSetting.KeyOverlay, options.ShowKeyOverlay);
+
+                if (options.CursorSize.HasValue)
+                    LocalConfig.SetValue(OsuSetting.GameplayCursorSize, options.CursorSize.Value);
             }
             catch (Exception ex)
             {
