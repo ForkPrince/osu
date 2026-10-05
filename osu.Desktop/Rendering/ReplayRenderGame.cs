@@ -402,6 +402,12 @@ namespace osu.Desktop.Rendering
 
                 if (options.CursorSize.HasValue)
                     LocalConfig.SetValue(OsuSetting.GameplayCursorSize, options.CursorSize.Value);
+
+                if (options.BackgroundDim.HasValue)
+                    LocalConfig.SetValue(OsuSetting.DimLevel, options.BackgroundDim.Value);
+
+                if (options.BackgroundBlur.HasValue)
+                    LocalConfig.SetValue(OsuSetting.BlurLevel, options.BackgroundBlur.Value);
             }
             catch (Exception ex)
             {

@@ -48,6 +48,8 @@ Run with `--help` to see all options:
 | `--cursor-size <float>` | Gameplay cursor size multiplier. | `1` |
 | `--cursor-trail <ms>` | Cursor trail length (`0` disables the trail). | Skin default |
 | `--hide-cursor` | Don't render the cursor. | Shown |
+| `--bg-dim <0-1>` | Background dim level. | `0.7` |
+| `--bg-blur <0-20>` | Background blur level. | `0` |
 | `--output-dir <dir>` | Directory to write the output into. | – |
 | `--auto-name` | Generate the filename from the replay and beatmap names. | Off |
 | `--no-overwrite` | Fail instead of overwriting an existing output file. | Overwrite |
